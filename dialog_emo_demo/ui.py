@@ -57,7 +57,6 @@ CSS = """
 .summary-card {
     --block-background-fill: #fff7dc;
     --background-fill-secondary: #fff7dc;
-    position: relative;
     border: 1px solid #ffd57a;
     border-radius: 8px;
     background: #fff7dc;
@@ -120,11 +119,8 @@ CSS = """
     white-space: nowrap;
 }
 .sender-compact {
-    position: absolute;
-    top: 24px;
-    right: 28px;
-    z-index: 3;
-    width: 180px;
+    flex: 1 1 auto;
+    max-width: 210px;
 }
 .sender-compact input,
 .sender-compact [role="combobox"] {
@@ -144,16 +140,7 @@ CSS = """
 .slice-card {
     background: #fff7dc !important;
     border-radius: 8px;
-    padding: 54px 12px 8px;
-}
-.slice-card .summary-top {
-    position: absolute;
-    left: 28px;
-    top: 31px;
-    color: #6f5200;
-    font-size: 13px;
-    font-weight: 700;
-    line-height: 1.2;
+    padding: 8px 12px;
 }
 .slice-details {
     display: grid;
@@ -278,7 +265,7 @@ CSS = """
 def build_app() -> gr.Blocks:
     default_frame = load_dialog_csv(DEFAULT_DATA_PATH)
 
-    with gr.Blocks(title="Dialog Emotion Timeline", fill_width=True, theme=gr.themes.Default()) as app:
+    with gr.Blocks(title="Dialog Emotion Timeline", fill_width=True) as app:
         gr.Markdown(
             "# Трекинг эмоциональной окраски диалога",
             elem_classes=["main-title"],
@@ -313,18 +300,23 @@ def build_app() -> gr.Blocks:
 
             with gr.Column(scale=5, elem_classes=["side-panel"]):
                 with gr.Group(elem_classes=["summary-card"]):
+                    with gr.Row(elem_classes=["summary-head"]):
+                        stats_title = gr.HTML(
+                            value=render_stats_title("Все"),
+                            elem_classes=["summary-title"],
+                        )
+                        sender = gr.Dropdown(
+                            choices=sender_choices(default_frame),
+                            value="Все",
+                            interactive=True,
+                            show_label=False,
+                            container=False,
+                            min_width=140,
+                            elem_classes=["sender-compact"],
+                        )
                     stats_view = gr.HTML(
-                        value=render_sender_stats(default_frame, "Все"),
+                        value=render_sender_stats(default_frame),
                         elem_classes=["summary-card-html"],
-                    )
-                    sender = gr.Dropdown(
-                        choices=sender_choices(default_frame),
-                        value="Все",
-                        interactive=True,
-                        show_label=False,
-                        container=False,
-                        min_width=140,
-                        elem_classes=["sender-compact"],
                     )
                 messages = gr.HTML(
                     value=render_message_blocks(default_frame),
@@ -343,18 +335,18 @@ def build_app() -> gr.Blocks:
         upload.upload(
             fn=load_uploaded_dialog,
             inputs=[upload, smoothing, graph_mode, focus],
-            outputs=[sender, plot, stats_view, messages],
+            outputs=[sender, plot, stats_title, stats_view, messages],
         )
         sender.change(
             fn=update_view,
             inputs=[upload, sender, smoothing, graph_mode, focus],
-            outputs=[plot, stats_view, messages],
+            outputs=[plot, stats_title, stats_view, messages],
         )
         for control in (smoothing, graph_mode, focus):
             control.change(
                 fn=update_view,
                 inputs=[upload, sender, smoothing, graph_mode, focus],
-                outputs=[plot, stats_view, messages],
+                outputs=[plot, stats_title, stats_view, messages],
             )
 
     return app
@@ -365,13 +357,14 @@ def load_uploaded_dialog(
     smoothing_window: int,
     graph_mode: str,
     focus_label: str,
-) -> tuple[Any, Any, str, str]:
+) -> tuple[Any, Any, str, str, str]:
     frame = _load_frame(uploaded_file)
     choices = sender_choices(frame)
     return (
         gr.update(choices=choices, value="Все"),
         build_emotion_figure(frame, smoothing_window, graph_mode, focus_label),
-        render_sender_stats(frame, "Все"),
+        render_stats_title("Все"),
+        render_sender_stats(frame),
         render_message_blocks(frame),
     )
 
@@ -382,16 +375,21 @@ def update_view(
     smoothing_window: int,
     graph_mode: str,
     focus_label: str,
-) -> tuple[Any, str, str]:
+) -> tuple[Any, str, str, str]:
     frame = filter_by_sender(_load_frame(uploaded_file), sender)
     return (
         build_emotion_figure(frame, smoothing_window, graph_mode, focus_label),
-        render_sender_stats(frame, sender or "Все"),
+        render_stats_title(sender or "Все"),
+        render_sender_stats(frame),
         render_message_blocks(frame),
     )
 
 
-def render_sender_stats(frame: pd.DataFrame, sender: str = "Все") -> str:
+def render_stats_title(sender: str) -> str:
+    return f"Статистика: {escape(sender or 'Все')}"
+
+
+def render_sender_stats(frame: pd.DataFrame) -> str:
     if frame.empty:
         return '<div class="slice-card">Нет сообщений для статистики.</div>'
 
@@ -403,7 +401,6 @@ def render_sender_stats(frame: pd.DataFrame, sender: str = "Все") -> str:
     count = len(frame)
     return f"""
     <section class="slice-card">
-        <div class="summary-top">Статистика: {escape(sender or "Все")}</div>
         <div class="message-meta">
             <strong>{count} сообщений</strong>
             <span>среднее распределение</span>
