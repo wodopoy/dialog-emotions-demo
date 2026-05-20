@@ -20,27 +20,87 @@ from dialog_emo_demo.schema import (
 CSS = """
 .gradio-container {
     max-width: none !important;
+    background: #f8f7f2;
+}
+.main-title h1 {
+    margin-bottom: 4px;
+    letter-spacing: 0;
+}
+.main-title p {
+    color: #5f6368;
+    margin-top: 0;
 }
 .demo-shell {
     min-height: calc(100vh - 120px);
+    gap: 18px;
+}
+.plot-panel,
+.side-panel {
+    background: #ffffff;
+    border: 1px solid #e3e0d7;
+    border-radius: 8px;
+    padding: 14px;
+}
+.plot-panel {
+    box-shadow: 0 10px 30px rgba(37, 40, 35, 0.06);
+}
+.side-panel {
+    position: relative;
+    min-height: 78vh;
+    max-height: 78vh;
+    display: flex;
+    flex-direction: column;
+}
+.side-controls {
+    align-items: end;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.side-controls .wrap {
+    gap: 10px;
+}
+.upload-corner {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    z-index: 4;
+    display: flex;
+    justify-content: flex-end;
+    width: fit-content !important;
+    margin-top: 10px;
+}
+.upload-corner > *,
+.upload-corner button {
+    flex: 0 0 auto !important;
+    width: auto !important;
+}
+.upload-corner button {
+    border-radius: 8px !important;
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    min-height: 32px !important;
+    min-width: 118px !important;
 }
 .message-scroll {
-    max-height: 72vh;
+    height: calc(78vh - 178px);
+    max-height: calc(78vh - 178px);
+    min-height: 280px;
     overflow-y: auto;
-    padding-right: 8px;
+    padding: 2px 8px 52px 2px;
 }
 .message-card {
-    border: 1px solid #dedbd2;
+    border: 1px solid #e2ded5;
     border-radius: 8px;
-    background: #fffefa;
+    background: #ffffff;
     padding: 12px 14px;
     margin-bottom: 10px;
-    transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+    transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease, background 120ms ease;
 }
 .message-card:hover,
 .message-card:focus-within {
-    border-color: #2f6f6d;
-    box-shadow: 0 8px 22px rgba(31, 42, 38, 0.10);
+    border-color: #ffb000;
+    background: #fffdf6;
+    box-shadow: 0 10px 22px rgba(37, 40, 35, 0.12);
     transform: translateY(-1px);
 }
 .message-meta {
@@ -57,31 +117,39 @@ CSS = """
     font-size: 15px;
 }
 .message-details {
-    display: none;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
     margin-top: 12px;
     border-top: 1px solid #ebe7dd;
-    padding-top: 10px;
+    padding-top: 0;
+    transition: max-height 160ms ease, opacity 120ms ease, padding-top 120ms ease;
 }
 .message-card:hover .message-details,
 .message-card:focus-within .message-details {
-    display: block;
+    max-height: 240px;
+    opacity: 1;
+    padding-top: 10px;
 }
 .prob-row {
     display: grid;
-    grid-template-columns: 112px 1fr 44px;
+    grid-template-columns: 104px minmax(90px, 1fr) 42px;
     align-items: center;
     gap: 8px;
     margin: 6px 0;
     font-size: 12px;
 }
 .prob-track {
-    height: 8px;
+    display: block;
+    height: 9px;
     border-radius: 999px;
-    background: #ece8df;
+    background: #ece7dc;
     overflow: hidden;
 }
 .prob-fill {
+    display: block;
     height: 100%;
+    border-radius: 999px;
 }
 .empty-state {
     border: 1px dashed #cfc9bd;
@@ -99,11 +167,12 @@ def build_app() -> gr.Blocks:
         gr.Markdown(
             "# Трекинг эмоциональной окраски диалога\n"
             "CSV-контракт отделяет интерфейс от модели: каждая строка уже содержит "
-            "текст чанка, отправителя, время и шесть независимых вероятностей."
+            "текст чанка, отправителя, время и шесть независимых вероятностей.",
+            elem_classes=["main-title"],
         )
 
         with gr.Row(equal_height=False, elem_classes=["demo-shell"]):
-            with gr.Column(scale=7):
+            with gr.Column(scale=7, elem_classes=["plot-panel"]):
                 plot = gr.Plot(
                     value=build_emotion_figure(default_frame, window=3),
                     label="Эмоциональные траектории",
@@ -116,20 +185,30 @@ def build_app() -> gr.Blocks:
                     label="Длина сглаживающего окна",
                 )
 
-            with gr.Column(scale=5):
-                upload = gr.File(label="CSV с диалогом", file_types=[".csv"])
-                sender = gr.Dropdown(
-                    label="Отправитель",
-                    choices=sender_choices(default_frame),
-                    value="Все",
-                    interactive=True,
-                )
+            with gr.Column(scale=5, elem_classes=["side-panel"]):
+                with gr.Row(elem_classes=["side-controls"]):
+                    sender = gr.Dropdown(
+                        label="Отправитель",
+                        choices=sender_choices(default_frame),
+                        value="Все",
+                        interactive=True,
+                        scale=5,
+                    )
                 messages = gr.HTML(
                     value=render_message_blocks(default_frame),
                     label="Сообщения",
                 )
+                with gr.Row(elem_classes=["upload-corner"]):
+                    upload = gr.UploadButton(
+                        "Загрузить CSV",
+                        file_types=[".csv"],
+                        type="filepath",
+                        size="sm",
+                        variant="secondary",
+                        min_width=120,
+                    )
 
-        upload.change(
+        upload.upload(
             fn=load_uploaded_dialog,
             inputs=[upload, smoothing],
             outputs=[sender, plot, messages],

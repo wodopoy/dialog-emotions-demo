@@ -36,4 +36,5 @@ def test_build_emotion_figure_has_one_trace_per_group() -> None:
     figure = build_emotion_figure(frame, window=1)
 
     assert len(figure.data) == len(EMOTION_GROUPS)
+    assert figure.layout.hovermode == "closest"
     assert figure.layout.yaxis.range == (0, 1)
