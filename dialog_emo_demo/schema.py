@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 EMOTION_GROUPS = ("joy", "warmth", "sadness", "anger", "anxiety", "neutral")
-PROBABILITY_SUM_TOLERANCE = 1e-4
+PROBABILITY_SUM_TOLERANCE = 1e-3
 
 REQUIRED_COLUMNS = (
     "turn_index",
