@@ -14,7 +14,6 @@ from dialog_emo_demo.plotting import (
     EMOTION_COLORS,
     EMOTION_LABELS,
     build_emotion_figure,
-    build_slice_figure,
     max_turn_index,
 )
 from dialog_emo_demo.schema import (
@@ -57,8 +56,41 @@ CSS = """
     align-items: end;
     gap: 10px;
 }
-.slice-panel {
-    margin: 4px 0 10px;
+.slice-card {
+    border: 1px solid #ffd57a;
+    border-radius: 8px;
+    background: #fff7dc;
+    padding: 12px 14px 10px;
+    margin: 0 0 12px;
+    box-shadow: 0 8px 20px rgba(92, 66, 0, 0.08);
+}
+.slice-card .message-meta {
+    color: #6f5200;
+}
+.slice-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #6f5200;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+.slice-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 14px;
+    margin-top: 10px;
+    border-top: 1px solid #f3d48b;
+    padding-top: 8px;
+}
+.slice-details .prob-row {
+    grid-template-columns: 92px minmax(58px, 1fr) 34px;
+    gap: 6px;
+    margin: 4px 0;
+}
+.slice-details .prob-track {
+    height: 8px;
 }
 .side-panel {
     position: relative;
@@ -95,9 +127,9 @@ CSS = """
     min-width: 118px !important;
 }
 .message-scroll {
-    height: 210px;
-    max-height: 210px;
-    min-height: 210px;
+    height: calc(100vh - 378px);
+    max-height: calc(100vh - 378px);
+    min-height: 360px;
     overflow-y: auto;
     padding: 2px 8px 52px 2px;
 }
@@ -227,11 +259,7 @@ def build_app() -> gr.Blocks:
                         interactive=True,
                         scale=5,
                     )
-                slice_plot = gr.Plot(
-                    value=build_slice_figure(default_frame, turn_index=0),
-                    label="Срез",
-                    elem_classes=["slice-panel"],
-                )
+                slice_view = gr.HTML(value=render_slice_card(default_frame, turn_index=0))
                 messages = gr.HTML(
                     value=render_message_blocks(default_frame),
                     label="Сообщения",
@@ -249,18 +277,18 @@ def build_app() -> gr.Blocks:
         upload.upload(
             fn=load_uploaded_dialog,
             inputs=[upload, smoothing, graph_mode, focus, slice_turn],
-            outputs=[sender, slice_turn, plot, slice_plot, messages],
+            outputs=[sender, slice_turn, plot, slice_view, messages],
         )
         sender.change(
             fn=update_view,
             inputs=[upload, sender, smoothing, graph_mode, focus, slice_turn],
-            outputs=[slice_turn, plot, slice_plot, messages],
+            outputs=[slice_turn, plot, slice_view, messages],
         )
         for control in (smoothing, graph_mode, focus, slice_turn):
             control.change(
                 fn=update_view,
                 inputs=[upload, sender, smoothing, graph_mode, focus, slice_turn],
-                outputs=[slice_turn, plot, slice_plot, messages],
+                outputs=[slice_turn, plot, slice_view, messages],
             )
 
     return app
@@ -280,7 +308,7 @@ def load_uploaded_dialog(
         gr.update(choices=choices, value="Все"),
         _slice_slider_update(frame, turn),
         build_emotion_figure(frame, smoothing_window, graph_mode, focus_label),
-        build_slice_figure(frame, turn),
+        render_slice_card(frame, turn),
         render_message_blocks(frame),
     )
 
@@ -298,9 +326,28 @@ def update_view(
     return (
         _slice_slider_update(frame, turn),
         build_emotion_figure(frame, smoothing_window, graph_mode, focus_label),
-        build_slice_figure(frame, turn),
+        render_slice_card(frame, turn),
         render_message_blocks(frame),
     )
+
+
+def render_slice_card(frame: pd.DataFrame, turn_index: int) -> str:
+    if frame.empty:
+        return '<div class="slice-card">Срез недоступен.</div>'
+
+    row = _nearest_row(frame, turn_index)
+    details = "".join(_render_probability(row, emotion) for emotion in EMOTION_GROUPS)
+    return f"""
+    <section class="slice-card">
+        <div class="slice-label">Срез сообщения</div>
+        <div class="message-meta">
+            <strong>{escape(row.sender)}</strong>
+            <span>{escape(row.timestamp)} · #{int(row.turn_index)}</span>
+        </div>
+        <div class="message-text">{escape(row.text)}</div>
+        <div class="slice-details">{details}</div>
+    </section>
+    """
 
 
 def render_message_blocks(frame: pd.DataFrame) -> str:
@@ -367,6 +414,11 @@ def _slice_slider_update(frame: pd.DataFrame, turn_index: int) -> Any:
         maximum=int(frame["turn_index"].max()),
         value=turn_index,
     )
+
+
+def _nearest_row(frame: pd.DataFrame, turn_index: int) -> Any:
+    distances = (frame["turn_index"] - int(turn_index)).abs()
+    return frame.loc[distances.idxmin()]
 
 
 def _uploaded_path(uploaded_file: Any) -> Path | None:
