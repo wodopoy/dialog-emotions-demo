@@ -58,6 +58,7 @@ CSS = """
 .summary-card {
     --block-background-fill: #fff7dc;
     --background-fill-secondary: #fff7dc;
+    position: relative;
     border: 1px solid #ffd57a;
     border-radius: 8px;
     background: #fff7dc;
@@ -68,19 +69,42 @@ CSS = """
 .summary-card .block,
 .summary-card .form,
 .summary-card .wrap,
-.summary-card .prose {
+.summary-card .prose,
+.summary-card .html-container {
     background: transparent !important;
     border: 0 !important;
     box-shadow: none !important;
 }
+.summary-card .html-container > div,
+.summary-card [data-testid="HTML"] {
+    background: transparent !important;
+    border-radius: 8px !important;
+    padding: 0 !important;
+}
 .summary-card .block {
     padding: 0 !important;
+    border-radius: 8px !important;
 }
 .summary-head {
     align-items: center;
     background: #fff7dc !important;
     gap: 10px;
     margin-bottom: 8px;
+}
+.summary-card-html {
+    background: #fff7dc !important;
+}
+.summary-card-html,
+.summary-card-html > div,
+.summary-card-html .html-container,
+.summary-card-html [data-testid],
+.summary-card-html .block,
+.summary-card-html .wrap {
+    background: #fff7dc !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    padding: 0 !important;
 }
 .summary-title {
     color: #6f5200;
@@ -97,8 +121,11 @@ CSS = """
     white-space: nowrap;
 }
 .sender-compact {
-    flex: 1 1 auto;
-    max-width: 210px;
+    position: absolute;
+    top: 24px;
+    right: 28px;
+    z-index: 3;
+    width: 180px;
 }
 .sender-compact input,
 .sender-compact [role="combobox"] {
@@ -107,11 +134,28 @@ CSS = """
     border-radius: 8px !important;
     min-height: 34px !important;
 }
+.sender-compact,
+.sender-compact > *,
+.sender-compact .wrap {
+    border-radius: 8px !important;
+}
 .slice-card .message-meta {
     color: #6f5200;
 }
 .slice-card {
-    background: #fff7dc;
+    background: #fff7dc !important;
+    border: 1px solid #f3d48b;
+    border-radius: 8px;
+    padding: 54px 12px 8px;
+}
+.slice-card .summary-top {
+    position: absolute;
+    left: 28px;
+    top: 31px;
+    color: #6f5200;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
 }
 .slice-details {
     display: grid;
@@ -274,21 +318,19 @@ def build_app() -> gr.Blocks:
 
             with gr.Column(scale=5, elem_classes=["side-panel"]):
                 with gr.Group(elem_classes=["summary-card"]):
-                    with gr.Row(elem_classes=["summary-head"]):
-                        stats_title = gr.HTML(
-                            value=render_stats_title("Все"),
-                            elem_classes=["summary-title"],
-                        )
-                        sender = gr.Dropdown(
-                            choices=sender_choices(default_frame),
-                            value="Все",
-                            interactive=True,
-                            show_label=False,
-                            container=False,
-                            min_width=140,
-                            elem_classes=["sender-compact"],
-                        )
-                    stats_view = gr.HTML(value=render_sender_stats(default_frame))
+                    stats_view = gr.HTML(
+                        value=render_sender_stats(default_frame, "Все"),
+                        elem_classes=["summary-card-html"],
+                    )
+                    sender = gr.Dropdown(
+                        choices=sender_choices(default_frame),
+                        value="Все",
+                        interactive=True,
+                        show_label=False,
+                        container=False,
+                        min_width=140,
+                        elem_classes=["sender-compact"],
+                    )
                 messages = gr.HTML(
                     value=render_message_blocks(default_frame),
                     label="Сообщения",
@@ -306,18 +348,18 @@ def build_app() -> gr.Blocks:
         upload.upload(
             fn=load_uploaded_dialog,
             inputs=[upload, smoothing, graph_mode, focus],
-            outputs=[sender, plot, stats_title, stats_view, messages],
+            outputs=[sender, plot, stats_view, messages],
         )
         sender.change(
             fn=update_view,
             inputs=[upload, sender, smoothing, graph_mode, focus],
-            outputs=[plot, stats_title, stats_view, messages],
+            outputs=[plot, stats_view, messages],
         )
         for control in (smoothing, graph_mode, focus):
             control.change(
                 fn=update_view,
                 inputs=[upload, sender, smoothing, graph_mode, focus],
-                outputs=[plot, stats_title, stats_view, messages],
+                outputs=[plot, stats_view, messages],
             )
 
     return app
@@ -328,14 +370,13 @@ def load_uploaded_dialog(
     smoothing_window: int,
     graph_mode: str,
     focus_label: str,
-) -> tuple[Any, Any, str, str, str]:
+) -> tuple[Any, Any, str, str]:
     frame = _load_frame(uploaded_file)
     choices = sender_choices(frame)
     return (
         gr.update(choices=choices, value="Все"),
         build_emotion_figure(frame, smoothing_window, graph_mode, focus_label),
-        render_stats_title("Все"),
-        render_sender_stats(frame),
+        render_sender_stats(frame, "Все"),
         render_message_blocks(frame),
     )
 
@@ -346,21 +387,16 @@ def update_view(
     smoothing_window: int,
     graph_mode: str,
     focus_label: str,
-) -> tuple[Any, str, str, str]:
+) -> tuple[Any, str, str]:
     frame = filter_by_sender(_load_frame(uploaded_file), sender)
     return (
         build_emotion_figure(frame, smoothing_window, graph_mode, focus_label),
-        render_stats_title(sender or "Все"),
-        render_sender_stats(frame),
+        render_sender_stats(frame, sender or "Все"),
         render_message_blocks(frame),
     )
 
 
-def render_stats_title(sender: str) -> str:
-    return f"Статистика: {escape(sender or 'Все')}"
-
-
-def render_sender_stats(frame: pd.DataFrame) -> str:
+def render_sender_stats(frame: pd.DataFrame, sender: str = "Все") -> str:
     if frame.empty:
         return '<div class="slice-card">Нет сообщений для статистики.</div>'
 
@@ -372,6 +408,7 @@ def render_sender_stats(frame: pd.DataFrame) -> str:
     count = len(frame)
     return f"""
     <section class="slice-card">
+        <div class="summary-top">Статистика: {escape(sender or "Все")}</div>
         <div class="message-meta">
             <strong>{count} сообщений</strong>
             <span>среднее распределение</span>
