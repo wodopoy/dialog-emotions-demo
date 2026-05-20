@@ -7,7 +7,16 @@ from typing import Any
 import gradio as gr
 import pandas as pd
 
-from dialog_emo_demo.plotting import EMOTION_COLORS, EMOTION_LABELS, build_emotion_figure
+from dialog_emo_demo.plotting import (
+    FOCUS_ALL,
+    FOCUS_CHOICES,
+    GRAPH_MODES,
+    EMOTION_COLORS,
+    EMOTION_LABELS,
+    build_emotion_figure,
+    build_slice_figure,
+    max_turn_index,
+)
 from dialog_emo_demo.schema import (
     DEFAULT_DATA_PATH,
     EMOTION_GROUPS,
@@ -44,12 +53,16 @@ CSS = """
 .plot-panel {
     box-shadow: 0 10px 30px rgba(37, 40, 35, 0.06);
 }
+.plot-controls {
+    align-items: end;
+    gap: 10px;
+}
+.slice-panel {
+    margin: 4px 0 10px;
+}
 .side-panel {
     position: relative;
     min-height: 78vh;
-    max-height: 78vh;
-    display: flex;
-    flex-direction: column;
 }
 .side-controls {
     align-items: end;
@@ -82,9 +95,9 @@ CSS = """
     min-width: 118px !important;
 }
 .message-scroll {
-    height: calc(78vh - 178px);
-    max-height: calc(78vh - 178px);
-    min-height: 280px;
+    height: 210px;
+    max-height: 210px;
+    min-height: 210px;
     overflow-y: auto;
     padding: 2px 8px 52px 2px;
 }
@@ -167,7 +180,7 @@ def build_app() -> gr.Blocks:
         gr.Markdown(
             "# Трекинг эмоциональной окраски диалога\n"
             "CSV-контракт отделяет интерфейс от модели: каждая строка уже содержит "
-            "текст чанка, отправителя, время и шесть независимых вероятностей.",
+            "текст чанка, отправителя, время и распределение вероятностей по эмоциям.",
             elem_classes=["main-title"],
         )
 
@@ -177,12 +190,32 @@ def build_app() -> gr.Blocks:
                     value=build_emotion_figure(default_frame, window=3),
                     label="Эмоциональные траектории",
                 )
+                with gr.Row(elem_classes=["plot-controls"]):
+                    graph_mode = gr.Radio(
+                        choices=list(GRAPH_MODES),
+                        value="Линии",
+                        label="Вид",
+                        interactive=True,
+                    )
+                    focus = gr.Dropdown(
+                        choices=list(FOCUS_CHOICES),
+                        value=FOCUS_ALL,
+                        label="Фокус",
+                        interactive=True,
+                    )
                 smoothing = gr.Slider(
                     minimum=1,
                     maximum=8,
                     value=3,
                     step=1,
                     label="Длина сглаживающего окна",
+                )
+                slice_turn = gr.Slider(
+                    minimum=0,
+                    maximum=max_turn_index(default_frame),
+                    value=0,
+                    step=1,
+                    label="Срез сообщения",
                 )
 
             with gr.Column(scale=5, elem_classes=["side-panel"]):
@@ -194,6 +227,11 @@ def build_app() -> gr.Blocks:
                         interactive=True,
                         scale=5,
                     )
+                slice_plot = gr.Plot(
+                    value=build_slice_figure(default_frame, turn_index=0),
+                    label="Срез",
+                    elem_classes=["slice-panel"],
+                )
                 messages = gr.HTML(
                     value=render_message_blocks(default_frame),
                     label="Сообщения",
@@ -210,36 +248,59 @@ def build_app() -> gr.Blocks:
 
         upload.upload(
             fn=load_uploaded_dialog,
-            inputs=[upload, smoothing],
-            outputs=[sender, plot, messages],
+            inputs=[upload, smoothing, graph_mode, focus, slice_turn],
+            outputs=[sender, slice_turn, plot, slice_plot, messages],
         )
         sender.change(
             fn=update_view,
-            inputs=[upload, sender, smoothing],
-            outputs=[plot, messages],
+            inputs=[upload, sender, smoothing, graph_mode, focus, slice_turn],
+            outputs=[slice_turn, plot, slice_plot, messages],
         )
-        smoothing.change(
-            fn=update_view,
-            inputs=[upload, sender, smoothing],
-            outputs=[plot, messages],
-        )
+        for control in (smoothing, graph_mode, focus, slice_turn):
+            control.change(
+                fn=update_view,
+                inputs=[upload, sender, smoothing, graph_mode, focus, slice_turn],
+                outputs=[slice_turn, plot, slice_plot, messages],
+            )
 
     return app
 
 
-def load_uploaded_dialog(uploaded_file: Any, smoothing_window: int) -> tuple[Any, Any, str]:
+def load_uploaded_dialog(
+    uploaded_file: Any,
+    smoothing_window: int,
+    graph_mode: str,
+    focus_label: str,
+    slice_turn: int,
+) -> tuple[Any, Any, Any, Any, str]:
     frame = _load_frame(uploaded_file)
     choices = sender_choices(frame)
+    turn = _clamp_turn(frame, slice_turn)
     return (
         gr.update(choices=choices, value="Все"),
-        build_emotion_figure(frame, smoothing_window),
+        _slice_slider_update(frame, turn),
+        build_emotion_figure(frame, smoothing_window, graph_mode, focus_label),
+        build_slice_figure(frame, turn),
         render_message_blocks(frame),
     )
 
 
-def update_view(uploaded_file: Any, sender: str, smoothing_window: int) -> tuple[Any, str]:
+def update_view(
+    uploaded_file: Any,
+    sender: str,
+    smoothing_window: int,
+    graph_mode: str,
+    focus_label: str,
+    slice_turn: int,
+) -> tuple[Any, Any, Any, str]:
     frame = filter_by_sender(_load_frame(uploaded_file), sender)
-    return build_emotion_figure(frame, smoothing_window), render_message_blocks(frame)
+    turn = _clamp_turn(frame, slice_turn)
+    return (
+        _slice_slider_update(frame, turn),
+        build_emotion_figure(frame, smoothing_window, graph_mode, focus_label),
+        build_slice_figure(frame, turn),
+        render_message_blocks(frame),
+    )
 
 
 def render_message_blocks(frame: pd.DataFrame) -> str:
@@ -288,6 +349,24 @@ def _load_frame(uploaded_file: Any) -> pd.DataFrame:
         return load_dialog_csv(path)
     except (DialogDataError, ValueError, FileNotFoundError) as error:
         raise gr.Error(f"Не удалось прочитать CSV: {error}") from error
+
+
+def _clamp_turn(frame: pd.DataFrame, turn_index: int) -> int:
+    if frame.empty:
+        return 0
+    minimum = int(frame["turn_index"].min())
+    maximum = int(frame["turn_index"].max())
+    return min(max(int(turn_index), minimum), maximum)
+
+
+def _slice_slider_update(frame: pd.DataFrame, turn_index: int) -> Any:
+    if frame.empty:
+        return gr.update(minimum=0, maximum=0, value=0)
+    return gr.update(
+        minimum=int(frame["turn_index"].min()),
+        maximum=int(frame["turn_index"].max()),
+        value=turn_index,
+    )
 
 
 def _uploaded_path(uploaded_file: Any) -> Path | None:

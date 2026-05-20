@@ -11,7 +11,7 @@ The interface reads model-like outputs from CSV instead of calling a model direc
 - Chunk unit: one dialogue message per CSV row.
 - Data mode: bundled synthetic CSV plus optional CSV upload.
 - Refresh mode: static viewer, no live polling in v1.
-- Probability semantics: six independent probabilities in `[0, 1]`; rows do not need to sum to one.
+- Probability semantics: six probabilities in `[0, 1]`; each row must sum to `1`.
 - Emotions: `joy`, `warmth`, `sadness`, `anger`, `anxiety`, `neutral`.
 - UI language: Russian.
 - Chunk details: shown inside each message block on hover/focus.
@@ -50,6 +50,8 @@ Required columns:
 - Done: `feat: build emotion timeline ui`
 - Done: `test: cover data loading and smoothing`
 - Done: `docs: update implementation tracker`
+- Done: `style: refine emotion timeline interface`
+- Current: graph supports line/stacked area modes, emotion focus, and a per-message slice chart.
 
 ## Verification
 

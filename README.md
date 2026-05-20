@@ -14,7 +14,7 @@ fullWidth: true
 
 # Dialog Emotion Timeline
 
-Gradio demo for tracking six independent emotional signals across a dialogue:
+Gradio demo for tracking an emotional probability distribution across a dialogue:
 `joy`, `warmth`, `sadness`, `anger`, `anxiety`, and `neutral`.
 
 The UI reads model-like output from CSV. The bundled sample is synthetic; a real
@@ -32,5 +32,5 @@ uv run python app.py
 turn_index,timestamp,sender,text,joy,warmth,sadness,anger,anxiety,neutral
 ```
 
-Each emotion column is an independent probability in `[0, 1]`. Rows do not need
-to sum to one.
+Each emotion column is a probability in `[0, 1]`. For each row, the six emotion
+probabilities must sum to `1`.

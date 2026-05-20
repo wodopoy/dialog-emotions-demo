@@ -42,7 +42,7 @@ def build_synthetic_dialog() -> pd.DataFrame:
             "sender": sender,
             "text": text,
         }
-        record.update(dict(zip(EMOTION_GROUPS, values)))
+        record.update(dict(zip(EMOTION_GROUPS, _normalize(values))))
         records.append(record)
 
     return validate_dialog_frame(pd.DataFrame(records, columns=REQUIRED_COLUMNS))
@@ -53,3 +53,12 @@ def write_synthetic_dialog(path: str | Path) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     build_synthetic_dialog().to_csv(output_path, index=False)
     return output_path
+
+
+def _normalize(values: tuple[float, ...]) -> tuple[float, ...]:
+    total = sum(values)
+    if total <= 0:
+        raise ValueError("Synthetic emotion values must have a positive sum")
+    normalized = [value / total for value in values]
+    normalized[-1] = 1 - sum(normalized[:-1])
+    return tuple(round(value, 6) for value in normalized)

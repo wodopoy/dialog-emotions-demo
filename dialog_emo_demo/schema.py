@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 EMOTION_GROUPS = ("joy", "warmth", "sadness", "anger", "anxiety", "neutral")
+PROBABILITY_SUM_TOLERANCE = 1e-4
 
 REQUIRED_COLUMNS = (
     "turn_index",
@@ -44,6 +45,15 @@ def validate_dialog_frame(frame: pd.DataFrame) -> pd.DataFrame:
         out_of_range = ~cleaned[column].between(0, 1)
         if out_of_range.any():
             raise DialogDataError(f"Column {column} must contain values in [0, 1]")
+
+    row_sums = cleaned.loc[:, EMOTION_GROUPS].sum(axis=1)
+    invalid_sums = (row_sums - 1).abs() > PROBABILITY_SUM_TOLERANCE
+    if invalid_sums.any():
+        turn_indexes = cleaned.loc[invalid_sums, "turn_index"].head(5).tolist()
+        raise DialogDataError(
+            "Emotion probabilities must sum to 1 for each row; "
+            f"bad turn_index values: {turn_indexes}"
+        )
 
     return cleaned.sort_values("turn_index", kind="stable").reset_index(drop=True)
 

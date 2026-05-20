@@ -25,6 +25,7 @@ def test_loads_synthetic_dialog_contract() -> None:
     ]
     assert frame.loc[:, EMOTION_GROUPS].min().min() >= 0
     assert frame.loc[:, EMOTION_GROUPS].max().max() <= 1
+    assert frame.loc[:, EMOTION_GROUPS].sum(axis=1).sub(1).abs().max() < 1e-4
 
 
 def test_rejects_missing_required_column() -> None:
@@ -39,6 +40,14 @@ def test_rejects_probability_outside_unit_range() -> None:
     frame.loc[0, "joy"] = 1.4
 
     with pytest.raises(DialogDataError, match="joy"):
+        validate_dialog_frame(frame)
+
+
+def test_rejects_probabilities_that_do_not_sum_to_one() -> None:
+    frame = load_dialog_csv(DEFAULT_DATA_PATH)
+    frame.loc[0, "joy"] = 0.0
+
+    with pytest.raises(DialogDataError, match="sum to 1"):
         validate_dialog_frame(frame)
 
 
