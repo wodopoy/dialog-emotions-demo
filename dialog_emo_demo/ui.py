@@ -144,7 +144,6 @@ CSS = """
 }
 .slice-card {
     background: #fff7dc !important;
-    border: 1px solid #f3d48b;
     border-radius: 8px;
     padding: 54px 12px 8px;
 }
@@ -283,9 +282,7 @@ def build_app() -> gr.Blocks:
 
     with gr.Blocks(title="Dialog Emotion Timeline", fill_width=True) as app:
         gr.Markdown(
-            "# Трекинг эмоциональной окраски диалога\n"
-            "CSV-контракт отделяет интерфейс от модели: каждая строка уже содержит "
-            "текст чанка, отправителя, время и распределение вероятностей по эмоциям.",
+            "# Трекинг эмоциональной окраски диалога",
             elem_classes=["main-title"],
         )
 

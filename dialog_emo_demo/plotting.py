@@ -74,12 +74,12 @@ def build_emotion_figure(
         margin={"l": 52, "r": 20, "t": 14, "b": 48},
         paper_bgcolor="#fffdf8",
         plot_bgcolor="#fffaf0",
-        hovermode="x unified" if is_area else "closest",
+        hovermode="x unified",
         hoverdistance=18,
-        spikedistance=-1,
+        spikedistance=0,
         hoverlabel={
-            "bgcolor": "#111827",
-            "bordercolor": "#111827",
+            "bgcolor": "rgba(17, 24, 39, 0.72)",
+            "bordercolor": "rgba(17, 24, 39, 0.72)",
             "font": {"color": "#ffffff", "size": 14},
         },
         legend={
