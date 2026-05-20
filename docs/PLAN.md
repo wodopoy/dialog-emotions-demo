@@ -33,22 +33,30 @@ Required columns:
 
 ## Checklist
 
-- [ ] Add dependencies and HF Spaces metadata.
-- [ ] Generate deterministic synthetic dialogue CSV.
-- [ ] Implement CSV loading and validation.
-- [ ] Implement smoothing and Plotly figure generation.
-- [ ] Build Gradio Blocks UI.
-- [ ] Add focused tests.
-- [ ] Run local verification.
-- [ ] Commit changes in logical steps.
+- [x] Add dependencies and HF Spaces metadata.
+- [x] Generate deterministic synthetic dialogue CSV.
+- [x] Implement CSV loading and validation.
+- [x] Implement smoothing and Plotly figure generation.
+- [x] Build Gradio Blocks UI.
+- [x] Add focused tests.
+- [x] Run local verification.
+- [x] Commit changes in logical steps.
 
 ## Commit Log
 
-- Planned: `docs: add project plan`
-- Planned: `chore: add gradio dependencies and space config`
-- Planned: `feat: add csv contract and synthetic dialogue`
-- Planned: `feat: build emotion timeline ui`
-- Planned: `test: cover data loading and smoothing`
+- Done: `docs: add project plan`
+- Done: `chore: add gradio dependencies and space config`
+- Done: `feat: add csv contract and synthetic dialogue`
+- Done: `feat: build emotion timeline ui`
+- Done: `test: cover data loading and smoothing`
+- Done: `docs: update implementation tracker`
+
+## Verification
+
+- `uv run pytest`
+- `uv run python -m compileall app.py main.py dialog_emo_demo scripts tests`
+- `uv run python app.py`
+- Browser smoke test at `http://127.0.0.1:7860`
 
 ## Non-goals For v1
 
