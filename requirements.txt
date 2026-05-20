@@ -109,11 +109,11 @@ pillow==12.2.0
     # via gradio
 plotly==6.7.0
     # via dialog-emo-demo-codex
-pydantic==2.13.4
+pydantic==2.12.5
     # via
     #   fastapi
     #   gradio
-pydantic-core==2.46.4
+pydantic-core==2.41.5
     # via pydantic
 pydub==0.25.1
     # via gradio
