@@ -278,7 +278,7 @@ CSS = """
 def build_app() -> gr.Blocks:
     default_frame = load_dialog_csv(DEFAULT_DATA_PATH)
 
-    with gr.Blocks(title="Dialog Emotion Timeline", fill_width=True) as app:
+    with gr.Blocks(title="Dialog Emotion Timeline", fill_width=True, theme=gr.themes.Default()) as app:
         gr.Markdown(
             "# Трекинг эмоциональной окраски диалога",
             elem_classes=["main-title"],
