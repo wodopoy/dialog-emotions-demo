@@ -14,7 +14,6 @@ from dialog_emo_demo.plotting import (
     EMOTION_COLORS,
     EMOTION_LABELS,
     build_emotion_figure,
-    max_turn_index,
 )
 from dialog_emo_demo.schema import (
     DEFAULT_DATA_PATH,
@@ -56,7 +55,9 @@ CSS = """
     align-items: end;
     gap: 10px;
 }
-.slice-card {
+.summary-card {
+    --block-background-fill: #fff7dc;
+    --background-fill-secondary: #fff7dc;
     border: 1px solid #ffd57a;
     border-radius: 8px;
     background: #fff7dc;
@@ -64,17 +65,53 @@ CSS = """
     margin: 0 0 12px;
     box-shadow: 0 8px 20px rgba(92, 66, 0, 0.08);
 }
-.slice-card .message-meta {
-    color: #6f5200;
+.summary-card .block,
+.summary-card .form,
+.summary-card .wrap,
+.summary-card .prose {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
 }
-.slice-label {
-    display: inline-flex;
+.summary-card .block {
+    padding: 0 !important;
+}
+.summary-head {
     align-items: center;
-    gap: 6px;
+    background: #fff7dc !important;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.summary-title {
+    color: #6f5200;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+.summary-title p {
     color: #6f5200;
     font-size: 12px;
     font-weight: 700;
-    margin-bottom: 8px;
+    margin: 0;
+    white-space: nowrap;
+}
+.sender-compact {
+    flex: 1 1 auto;
+    max-width: 210px;
+}
+.sender-compact input,
+.sender-compact [role="combobox"] {
+    background: #ffffff !important;
+    border: 1px solid #f0ca70 !important;
+    border-radius: 8px !important;
+    min-height: 34px !important;
+}
+.slice-card .message-meta {
+    color: #6f5200;
+}
+.slice-card {
+    background: #fff7dc;
 }
 .slice-details {
     display: grid;
@@ -95,14 +132,6 @@ CSS = """
 .side-panel {
     position: relative;
     min-height: 78vh;
-}
-.side-controls {
-    align-items: end;
-    gap: 10px;
-    margin-bottom: 12px;
-}
-.side-controls .wrap {
-    gap: 10px;
 }
 .upload-corner {
     position: absolute;
@@ -127,9 +156,9 @@ CSS = """
     min-width: 118px !important;
 }
 .message-scroll {
-    height: calc(100vh - 378px);
-    max-height: calc(100vh - 378px);
-    min-height: 360px;
+    height: calc(100vh - 326px);
+    max-height: calc(100vh - 326px);
+    min-height: 390px;
     overflow-y: auto;
     padding: 2px 8px 52px 2px;
 }
@@ -242,24 +271,24 @@ def build_app() -> gr.Blocks:
                     step=1,
                     label="Длина сглаживающего окна",
                 )
-                slice_turn = gr.Slider(
-                    minimum=0,
-                    maximum=max_turn_index(default_frame),
-                    value=0,
-                    step=1,
-                    label="Срез сообщения",
-                )
 
             with gr.Column(scale=5, elem_classes=["side-panel"]):
-                with gr.Row(elem_classes=["side-controls"]):
-                    sender = gr.Dropdown(
-                        label="Отправитель",
-                        choices=sender_choices(default_frame),
-                        value="Все",
-                        interactive=True,
-                        scale=5,
-                    )
-                slice_view = gr.HTML(value=render_slice_card(default_frame, turn_index=0))
+                with gr.Group(elem_classes=["summary-card"]):
+                    with gr.Row(elem_classes=["summary-head"]):
+                        stats_title = gr.HTML(
+                            value=render_stats_title("Все"),
+                            elem_classes=["summary-title"],
+                        )
+                        sender = gr.Dropdown(
+                            choices=sender_choices(default_frame),
+                            value="Все",
+                            interactive=True,
+                            show_label=False,
+                            container=False,
+                            min_width=140,
+                            elem_classes=["sender-compact"],
+                        )
+                    stats_view = gr.HTML(value=render_sender_stats(default_frame))
                 messages = gr.HTML(
                     value=render_message_blocks(default_frame),
                     label="Сообщения",
@@ -276,19 +305,19 @@ def build_app() -> gr.Blocks:
 
         upload.upload(
             fn=load_uploaded_dialog,
-            inputs=[upload, smoothing, graph_mode, focus, slice_turn],
-            outputs=[sender, slice_turn, plot, slice_view, messages],
+            inputs=[upload, smoothing, graph_mode, focus],
+            outputs=[sender, plot, stats_title, stats_view, messages],
         )
         sender.change(
             fn=update_view,
-            inputs=[upload, sender, smoothing, graph_mode, focus, slice_turn],
-            outputs=[slice_turn, plot, slice_view, messages],
+            inputs=[upload, sender, smoothing, graph_mode, focus],
+            outputs=[plot, stats_title, stats_view, messages],
         )
-        for control in (smoothing, graph_mode, focus, slice_turn):
+        for control in (smoothing, graph_mode, focus):
             control.change(
                 fn=update_view,
-                inputs=[upload, sender, smoothing, graph_mode, focus, slice_turn],
-                outputs=[slice_turn, plot, slice_view, messages],
+                inputs=[upload, sender, smoothing, graph_mode, focus],
+                outputs=[plot, stats_title, stats_view, messages],
             )
 
     return app
@@ -299,16 +328,14 @@ def load_uploaded_dialog(
     smoothing_window: int,
     graph_mode: str,
     focus_label: str,
-    slice_turn: int,
-) -> tuple[Any, Any, Any, Any, str]:
+) -> tuple[Any, Any, str, str, str]:
     frame = _load_frame(uploaded_file)
     choices = sender_choices(frame)
-    turn = _clamp_turn(frame, slice_turn)
     return (
         gr.update(choices=choices, value="Все"),
-        _slice_slider_update(frame, turn),
         build_emotion_figure(frame, smoothing_window, graph_mode, focus_label),
-        render_slice_card(frame, turn),
+        render_stats_title("Все"),
+        render_sender_stats(frame),
         render_message_blocks(frame),
     )
 
@@ -319,32 +346,36 @@ def update_view(
     smoothing_window: int,
     graph_mode: str,
     focus_label: str,
-    slice_turn: int,
-) -> tuple[Any, Any, Any, str]:
+) -> tuple[Any, str, str, str]:
     frame = filter_by_sender(_load_frame(uploaded_file), sender)
-    turn = _clamp_turn(frame, slice_turn)
     return (
-        _slice_slider_update(frame, turn),
         build_emotion_figure(frame, smoothing_window, graph_mode, focus_label),
-        render_slice_card(frame, turn),
+        render_stats_title(sender or "Все"),
+        render_sender_stats(frame),
         render_message_blocks(frame),
     )
 
 
-def render_slice_card(frame: pd.DataFrame, turn_index: int) -> str:
-    if frame.empty:
-        return '<div class="slice-card">Срез недоступен.</div>'
+def render_stats_title(sender: str) -> str:
+    return f"Статистика: {escape(sender or 'Все')}"
 
-    row = _nearest_row(frame, turn_index)
-    details = "".join(_render_probability(row, emotion) for emotion in EMOTION_GROUPS)
+
+def render_sender_stats(frame: pd.DataFrame) -> str:
+    if frame.empty:
+        return '<div class="slice-card">Нет сообщений для статистики.</div>'
+
+    averages = frame.loc[:, EMOTION_GROUPS].mean()
+    details = "".join(
+        _render_probability_value(emotion, float(averages[emotion]))
+        for emotion in EMOTION_GROUPS
+    )
+    count = len(frame)
     return f"""
     <section class="slice-card">
-        <div class="slice-label">Срез сообщения</div>
         <div class="message-meta">
-            <strong>{escape(row.sender)}</strong>
-            <span>{escape(row.timestamp)} · #{int(row.turn_index)}</span>
+            <strong>{count} сообщений</strong>
+            <span>среднее распределение</span>
         </div>
-        <div class="message-text">{escape(row.text)}</div>
         <div class="slice-details">{details}</div>
     </section>
     """
@@ -376,6 +407,10 @@ def _render_message_card(row: Any) -> str:
 
 def _render_probability(row: Any, emotion: str) -> str:
     value = float(getattr(row, emotion))
+    return _render_probability_value(emotion, value)
+
+
+def _render_probability_value(emotion: str, value: float) -> str:
     percent = round(value * 100)
     color = EMOTION_COLORS[emotion]
     label = EMOTION_LABELS[emotion]
@@ -396,29 +431,6 @@ def _load_frame(uploaded_file: Any) -> pd.DataFrame:
         return load_dialog_csv(path)
     except (DialogDataError, ValueError, FileNotFoundError) as error:
         raise gr.Error(f"Не удалось прочитать CSV: {error}") from error
-
-
-def _clamp_turn(frame: pd.DataFrame, turn_index: int) -> int:
-    if frame.empty:
-        return 0
-    minimum = int(frame["turn_index"].min())
-    maximum = int(frame["turn_index"].max())
-    return min(max(int(turn_index), minimum), maximum)
-
-
-def _slice_slider_update(frame: pd.DataFrame, turn_index: int) -> Any:
-    if frame.empty:
-        return gr.update(minimum=0, maximum=0, value=0)
-    return gr.update(
-        minimum=int(frame["turn_index"].min()),
-        maximum=int(frame["turn_index"].max()),
-        value=turn_index,
-    )
-
-
-def _nearest_row(frame: pd.DataFrame, turn_index: int) -> Any:
-    distances = (frame["turn_index"] - int(turn_index)).abs()
-    return frame.loc[distances.idxmin()]
 
 
 def _uploaded_path(uploaded_file: Any) -> Path | None:
