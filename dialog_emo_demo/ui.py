@@ -38,7 +38,6 @@ CSS = """
     margin-top: 0;
 }
 .demo-shell {
-    min-height: calc(100vh - 120px);
     gap: 18px;
 }
 .plot-panel,
@@ -199,8 +198,7 @@ CSS = """
     min-width: 118px !important;
 }
 .message-scroll {
-    height: calc(100vh - 326px);
-    max-height: calc(100vh - 326px);
+    max-height: 640px;
     min-height: 390px;
     overflow-y: auto;
     padding: 2px 8px 52px 2px;
