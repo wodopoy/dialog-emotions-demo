@@ -59,7 +59,12 @@ def build_emotion_figure(
                 stackgroup="emotion" if is_area else None,
                 groupnorm=None,
                 fillcolor=_rgba(EMOTION_COLORS[emotion], 0.62 if focused else 0.16),
-                line={"color": EMOTION_COLORS[emotion], "width": line_width},
+                line={
+                    "color": EMOTION_COLORS[emotion],
+                    "width": line_width,
+                    "shape": "spline",
+                    "smoothing": 1.3,
+                },
                 marker={
                     "size": 8 if focused else 5,
                     "color": EMOTION_COLORS[emotion],
