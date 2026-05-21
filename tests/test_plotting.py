@@ -37,7 +37,9 @@ def test_build_emotion_figure_has_one_trace_per_group() -> None:
 
     assert len(figure.data) == len(EMOTION_GROUPS)
     assert figure.layout.hovermode == "x unified"
-    assert figure.layout.yaxis.range == (0, 1)
+    low, high = figure.layout.yaxis.range
+    assert low == 0
+    assert 0.3 < high <= 1.0
 
 
 def test_build_area_figure_uses_stacked_traces() -> None:

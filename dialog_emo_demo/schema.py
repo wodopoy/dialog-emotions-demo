@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 EMOTION_GROUPS = ("joy", "warmth", "sadness", "anger", "anxiety", "neutral")
@@ -15,16 +17,23 @@ REQUIRED_COLUMNS = (
     *EMOTION_GROUPS,
 )
 
-DEFAULT_DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "synthetic_dialog.csv"
+DEFAULT_DATA_PATH = Path(
+    os.environ.get("DIALOG_CSV")
+    or Path(__file__).resolve().parent.parent / "data" / "synthetic_dialog.csv"
+)
 
 
 class DialogDataError(ValueError):
     """Raised when a dialogue CSV does not match the expected contract."""
 
 
-def load_dialog_csv(path: str | Path) -> pd.DataFrame:
+def load_raw_dialog_csv(path: str | Path) -> pd.DataFrame:
     frame = pd.read_csv(path)
     return validate_dialog_frame(frame)
+
+
+def load_dialog_csv(path: str | Path, temperature: float = 1.0) -> pd.DataFrame:
+    return prepare_dialog_frame(load_raw_dialog_csv(path), temperature=temperature)
 
 
 def validate_dialog_frame(frame: pd.DataFrame) -> pd.DataFrame:
@@ -42,20 +51,40 @@ def validate_dialog_frame(frame: pd.DataFrame) -> pd.DataFrame:
 
     for column in EMOTION_GROUPS:
         cleaned[column] = pd.to_numeric(cleaned[column], errors="raise")
-        out_of_range = ~cleaned[column].between(0, 1)
-        if out_of_range.any():
-            raise DialogDataError(f"Column {column} must contain values in [0, 1]")
-
-    row_sums = cleaned.loc[:, EMOTION_GROUPS].sum(axis=1)
-    invalid_sums = (row_sums - 1).abs() > PROBABILITY_SUM_TOLERANCE
-    if invalid_sums.any():
-        turn_indexes = cleaned.loc[invalid_sums, "turn_index"].head(5).tolist()
-        raise DialogDataError(
-            "Emotion probabilities must sum to 1 for each row; "
-            f"bad turn_index values: {turn_indexes}"
-        )
+        if not np.isfinite(cleaned[column]).all():
+            raise DialogDataError(f"Column {column} must contain finite numeric values")
 
     return cleaned.sort_values("turn_index", kind="stable").reset_index(drop=True)
+
+
+def prepare_dialog_frame(frame: pd.DataFrame, temperature: float = 1.0) -> pd.DataFrame:
+    cleaned = validate_dialog_frame(frame)
+    temperature = float(temperature)
+    if temperature <= 0:
+        raise DialogDataError("Temperature must be positive")
+
+    scores = cleaned.loc[:, EMOTION_GROUPS].astype(float)
+    row_sums = scores.sum(axis=1)
+    probability_rows = (
+        scores.ge(0).all(axis=1)
+        & scores.le(1).all(axis=1)
+        & ((row_sums - 1).abs() <= PROBABILITY_SUM_TOLERANCE)
+    )
+
+    logits = scores.copy()
+    if probability_rows.any():
+        logits.loc[probability_rows, :] = np.log(
+            scores.loc[probability_rows, :].clip(lower=1e-12)
+        )
+
+    scaled = logits / temperature
+    shifted = scaled.sub(scaled.max(axis=1), axis=0)
+    exp_scores = np.exp(shifted)
+    probabilities = exp_scores.div(exp_scores.sum(axis=1), axis=0)
+
+    prepared = cleaned.copy()
+    prepared.loc[:, EMOTION_GROUPS] = probabilities.loc[:, EMOTION_GROUPS]
+    return prepared
 
 
 def sender_choices(frame: pd.DataFrame) -> list[str]:

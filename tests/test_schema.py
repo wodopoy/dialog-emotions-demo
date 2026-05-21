@@ -7,6 +7,7 @@ from dialog_emo_demo.schema import (
     EMOTION_GROUPS,
     filter_by_sender,
     load_dialog_csv,
+    prepare_dialog_frame,
     sender_choices,
     validate_dialog_frame,
 )
@@ -35,20 +36,24 @@ def test_rejects_missing_required_column() -> None:
         validate_dialog_frame(frame)
 
 
-def test_rejects_probability_outside_unit_range() -> None:
+def test_accepts_logits_and_softmaxes_them() -> None:
     frame = load_dialog_csv(DEFAULT_DATA_PATH)
-    frame.loc[0, "joy"] = 1.4
+    frame.loc[0, list(EMOTION_GROUPS)] = [3.0, 1.0, -2.0, -1.0, 0.5, 0.0]
 
-    with pytest.raises(DialogDataError, match="joy"):
-        validate_dialog_frame(frame)
+    prepared = prepare_dialog_frame(frame)
+
+    assert prepared.loc[0, list(EMOTION_GROUPS)].sum() == pytest.approx(1.0)
+    assert prepared.loc[0, "joy"] > prepared.loc[0, "warmth"]
 
 
-def test_rejects_probabilities_that_do_not_sum_to_one() -> None:
+def test_temperature_changes_distribution_sharpness() -> None:
     frame = load_dialog_csv(DEFAULT_DATA_PATH)
-    frame.loc[0, "joy"] = 0.0
+    frame.loc[0, list(EMOTION_GROUPS)] = [3.0, 1.0, -2.0, -1.0, 0.5, 0.0]
 
-    with pytest.raises(DialogDataError, match="sum to 1"):
-        validate_dialog_frame(frame)
+    cold = prepare_dialog_frame(frame, temperature=0.5)
+    hot = prepare_dialog_frame(frame, temperature=5.0)
+
+    assert cold.loc[0, "joy"] > hot.loc[0, "joy"]
 
 
 def test_sender_choices_and_filtering() -> None:

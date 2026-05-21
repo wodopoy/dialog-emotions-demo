@@ -20,7 +20,8 @@ from dialog_emo_demo.schema import (
     EMOTION_GROUPS,
     DialogDataError,
     filter_by_sender,
-    load_dialog_csv,
+    load_raw_dialog_csv,
+    prepare_dialog_frame,
     sender_choices,
 )
 
@@ -128,6 +129,7 @@ CSS = """
     border: 1px solid #f0ca70 !important;
     border-radius: 8px !important;
     min-height: 34px !important;
+    text-align: center !important;
 }
 .sender-compact,
 .sender-compact > *,
@@ -263,9 +265,11 @@ CSS = """
 
 
 def build_app() -> gr.Blocks:
-    default_frame = load_dialog_csv(DEFAULT_DATA_PATH)
+    default_raw_frame = load_raw_dialog_csv(DEFAULT_DATA_PATH)
+    default_frame = prepare_dialog_frame(default_raw_frame)
 
     with gr.Blocks(title="Dialog Emotion Timeline", fill_width=True) as app:
+        data_state = gr.State(default_raw_frame)
         gr.Markdown(
             "# Трекинг эмоциональной окраски диалога",
             elem_classes=["main-title"],
@@ -296,6 +300,13 @@ def build_app() -> gr.Blocks:
                     value=3,
                     step=1,
                     label="Длина сглаживающего окна",
+                )
+                temperature = gr.Slider(
+                    minimum=0.1,
+                    maximum=10,
+                    value=1,
+                    step=0.1,
+                    label="Temperature softmax",
                 )
 
             with gr.Column(scale=5, elem_classes=["side-panel"]):
@@ -334,18 +345,18 @@ def build_app() -> gr.Blocks:
 
         upload.upload(
             fn=load_uploaded_dialog,
-            inputs=[upload, smoothing, graph_mode, focus],
-            outputs=[sender, plot, stats_title, stats_view, messages],
+            inputs=[upload, smoothing, graph_mode, focus, temperature],
+            outputs=[data_state, sender, plot, stats_title, stats_view, messages],
         )
         sender.change(
             fn=update_view,
-            inputs=[upload, sender, smoothing, graph_mode, focus],
+            inputs=[data_state, sender, smoothing, graph_mode, focus, temperature],
             outputs=[plot, stats_title, stats_view, messages],
         )
-        for control in (smoothing, graph_mode, focus):
+        for control in (smoothing, graph_mode, focus, temperature):
             control.change(
                 fn=update_view,
-                inputs=[upload, sender, smoothing, graph_mode, focus],
+                inputs=[data_state, sender, smoothing, graph_mode, focus, temperature],
                 outputs=[plot, stats_title, stats_view, messages],
             )
 
@@ -357,10 +368,13 @@ def load_uploaded_dialog(
     smoothing_window: int,
     graph_mode: str,
     focus_label: str,
-) -> tuple[Any, Any, str, str, str]:
-    frame = _load_frame(uploaded_file)
+    temperature: float,
+) -> tuple[pd.DataFrame, Any, Any, str, str, str]:
+    raw_frame = _load_raw_frame(uploaded_file)
+    frame = prepare_dialog_frame(raw_frame, temperature)
     choices = sender_choices(frame)
     return (
+        raw_frame,
         gr.update(choices=choices, value="Все"),
         build_emotion_figure(frame, smoothing_window, graph_mode, focus_label),
         render_stats_title("Все"),
@@ -370,13 +384,14 @@ def load_uploaded_dialog(
 
 
 def update_view(
-    uploaded_file: Any,
+    raw_frame: pd.DataFrame,
     sender: str,
     smoothing_window: int,
     graph_mode: str,
     focus_label: str,
+    temperature: float,
 ) -> tuple[Any, str, str, str]:
-    frame = filter_by_sender(_load_frame(uploaded_file), sender)
+    frame = filter_by_sender(prepare_dialog_frame(raw_frame, temperature), sender)
     return (
         build_emotion_figure(frame, smoothing_window, graph_mode, focus_label),
         render_stats_title(sender or "Все"),
@@ -454,10 +469,10 @@ def _render_probability_value(emotion: str, value: float) -> str:
     """
 
 
-def _load_frame(uploaded_file: Any) -> pd.DataFrame:
+def _load_raw_frame(uploaded_file: Any) -> pd.DataFrame:
     path = _uploaded_path(uploaded_file) or DEFAULT_DATA_PATH
     try:
-        return load_dialog_csv(path)
+        return load_raw_dialog_csv(path)
     except (DialogDataError, ValueError, FileNotFoundError) as error:
         raise gr.Error(f"Не удалось прочитать CSV: {error}") from error
 

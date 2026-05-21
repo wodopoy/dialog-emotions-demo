@@ -29,6 +29,14 @@ EMOTION_LABELS = {
 FOCUS_CHOICES = (FOCUS_ALL, *[EMOTION_LABELS[emotion] for emotion in EMOTION_GROUPS])
 
 
+def _y_range(smoothed: pd.DataFrame, focus_emotion: str | None, is_area: bool) -> list[float]:
+    if is_area or smoothed.empty:
+        return [0, 1]
+    columns = [focus_emotion] if focus_emotion else list(EMOTION_GROUPS)
+    peak = float(smoothed.loc[:, columns].to_numpy().max())
+    return [0, min(1.0, max(0.05, peak * 1.1))]
+
+
 def smooth_emotions(frame: pd.DataFrame, window: int) -> pd.DataFrame:
     window = max(int(window), 1)
     smoothed = frame.loc[:, EMOTION_GROUPS].rolling(window=window, min_periods=1).mean()
@@ -96,7 +104,7 @@ def build_emotion_figure(
         },
         xaxis_title="Сообщение",
         yaxis_title="Доля",
-        yaxis={"range": [0, 1], "tickformat": ".0%"},
+        yaxis={"range": _y_range(smoothed, focus_emotion, is_area), "tickformat": ".0%"},
         font={"family": "Inter, system-ui, sans-serif", "size": 13},
     )
     figure.update_xaxes(showgrid=True, gridcolor="#efe7d2", zeroline=False)
