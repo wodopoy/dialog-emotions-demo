@@ -65,6 +65,13 @@ CSS = """
     margin: 0 0 12px;
     box-shadow: 0 8px 20px rgba(92, 66, 0, 0.08);
 }
+/* Gradio's group wrapper paints `--block-background-fill` and adds a 1px gap
+   between children; that gap showed as a stray separator bar across the card.
+   Match the card colour and collapse the gap. */
+.summary-card .styler {
+    background: #fff7dc !important;
+    gap: 0 !important;
+}
 .summary-card .block,
 .summary-card .form,
 .summary-card .wrap,
@@ -264,11 +271,34 @@ CSS = """
 """
 
 
+# The whole UI is designed in a fixed light (cream) palette. Gradio's dark theme
+# swaps in dark block backgrounds / white text that clash with it, so we pin the
+# app to the light theme. A <head> script redirects once to `?__theme=light`
+# during initial parse — earlier and more reliable than the Blocks `js` hook.
+FORCE_LIGHT_THEME_HEAD = """
+<script>
+(function () {
+    try {
+        var url = new URL(window.location.href);
+        if (url.searchParams.get('__theme') !== 'light') {
+            url.searchParams.set('__theme', 'light');
+            window.location.replace(url.toString());
+        }
+    } catch (e) {}
+})();
+</script>
+"""
+
+
 def build_app() -> gr.Blocks:
     default_raw_frame = load_raw_dialog_csv(DEFAULT_DATA_PATH)
     default_frame = prepare_dialog_frame(default_raw_frame)
 
-    with gr.Blocks(title="Dialog Emotion Timeline", fill_width=True) as app:
+    with gr.Blocks(
+        title="Dialog Emotion Timeline",
+        fill_width=True,
+        head=FORCE_LIGHT_THEME_HEAD,
+    ) as app:
         data_state = gr.State(default_raw_frame)
         gr.Markdown(
             "# Трекинг эмоциональной окраски диалога",
