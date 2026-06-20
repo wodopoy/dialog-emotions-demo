@@ -29,6 +29,7 @@ def test_build_emotion_figure_has_one_trace_per_group() -> None:
             "sadness": [0.1, 0.1],
             "anger": [0.0, 0.1],
             "anxiety": [0.3, 0.2],
+            "surprise": [0.0, 0.0],
             "neutral": [0.1, 0.1],
         }
     )
@@ -54,6 +55,7 @@ def test_build_area_figure_uses_stacked_traces() -> None:
             "sadness": [0.1],
             "anger": [0.0],
             "anxiety": [0.3],
+            "surprise": [0.0],
             "neutral": [0.1],
         }
     )
@@ -76,6 +78,7 @@ def test_build_slice_figure_has_one_bar_trace() -> None:
             "sadness": [0.1],
             "anger": [0.0],
             "anxiety": [0.3],
+            "surprise": [0.0],
             "neutral": [0.1],
         }
     )

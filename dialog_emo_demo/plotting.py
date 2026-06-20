@@ -14,6 +14,7 @@ EMOTION_COLORS = {
     "sadness": "#1e88e5",
     "anger": "#ff3b30",
     "anxiety": "#9b5cff",
+    "surprise": "#ec4899",
     "neutral": "#4b5563",
 }
 
@@ -23,6 +24,7 @@ EMOTION_LABELS = {
     "sadness": "Грусть",
     "anger": "Злость",
     "anxiety": "Тревога",
+    "surprise": "Удивление",
     "neutral": "Нейтральность",
 }
 

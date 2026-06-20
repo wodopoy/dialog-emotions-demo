@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-EMOTION_GROUPS = ("joy", "warmth", "sadness", "anger", "anxiety", "neutral")
+EMOTION_GROUPS = ("joy", "warmth", "sadness", "anger", "anxiety", "surprise", "neutral")
 PROBABILITY_SUM_TOLERANCE = 1e-3
 
 REQUIRED_COLUMNS = (

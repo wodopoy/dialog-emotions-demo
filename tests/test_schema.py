@@ -38,7 +38,7 @@ def test_rejects_missing_required_column() -> None:
 
 def test_accepts_logits_and_softmaxes_them() -> None:
     frame = load_dialog_csv(DEFAULT_DATA_PATH)
-    frame.loc[0, list(EMOTION_GROUPS)] = [3.0, 1.0, -2.0, -1.0, 0.5, 0.0]
+    frame.loc[0, list(EMOTION_GROUPS)] = [3.0, 1.0, -2.0, -1.0, 0.5, -0.5, 0.0]
 
     prepared = prepare_dialog_frame(frame)
 
@@ -48,7 +48,7 @@ def test_accepts_logits_and_softmaxes_them() -> None:
 
 def test_temperature_changes_distribution_sharpness() -> None:
     frame = load_dialog_csv(DEFAULT_DATA_PATH)
-    frame.loc[0, list(EMOTION_GROUPS)] = [3.0, 1.0, -2.0, -1.0, 0.5, 0.0]
+    frame.loc[0, list(EMOTION_GROUPS)] = [3.0, 1.0, -2.0, -1.0, 0.5, -0.5, 0.0]
 
     cold = prepare_dialog_frame(frame, temperature=0.5)
     hot = prepare_dialog_frame(frame, temperature=5.0)
