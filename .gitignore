@@ -231,3 +231,6 @@ marimo/_lsp/
 __marimo__/
 # Streamlit
 .streamlit/secrets.toml
+
+# Local pipeline outputs (never commit scored dialogues)
+output/
