@@ -1,5 +1,5 @@
 [project]
-name = "dialog-emo-demo-codex"
+name = "dialog-emo-demo"
 version = "0.1.0"
 description = "Gradio demo for tracking emotion trajectories across a dialogue"
 readme = "README.md"
