@@ -38,7 +38,7 @@ fsspec==2026.4.0
     #   gradio-client
     #   huggingface-hub
 gradio==6.14.0
-    # via dialog-emo-demo-codex
+    # via dialog-emo-demo
 gradio-client==2.5.0
     # via
     #   gradio
@@ -99,21 +99,21 @@ packaging==26.2
     #   plotly
 pandas==2.3.3 ; python_full_version < '3.11'
     # via
-    #   dialog-emo-demo-codex
+    #   dialog-emo-demo
     #   gradio
 pandas==3.0.3 ; python_full_version >= '3.11'
     # via
-    #   dialog-emo-demo-codex
+    #   dialog-emo-demo
     #   gradio
 pillow==12.2.0
     # via gradio
 plotly==6.7.0
-    # via dialog-emo-demo-codex
-pydantic==2.12.5
+    # via dialog-emo-demo
+pydantic==2.13.4
     # via
     #   fastapi
     #   gradio
-pydantic-core==2.41.5
+pydantic-core==2.46.4
     # via pydantic
 pydub==0.25.1
     # via gradio
