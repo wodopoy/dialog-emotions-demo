@@ -19,7 +19,8 @@ dialogue: `joy`, `warmth`, `sadness`, `anger`, `anxiety`, `surprise`, `neutral`
 (the 7-class scheme used by the trained models). This timeline is the applied
 artifact of the bachelor's thesis «Исследование и разработка методов локального
 определения эмоциональной окраски текстовых сообщений в мобильных системах»
-(МФТИ, 2026), deployed as a technology demo on Hugging Face Spaces.
+(МФТИ, 2026), deployed as a technology demo on Hugging Face Spaces:
+**https://huggingface.co/spaces/wodopoy/dialog-emotion-timeline**.
 
 **This repository is the demo, and only the demo.** It reads a ready-made CSV and
 draws it — emotional trajectories, per-sender stats, per-message breakdowns, with
